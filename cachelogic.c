@@ -8,33 +8,28 @@
 
 void accessMemory(address addr, word* data, WriteEnable we)
 {
+  if(randomint(25) == 13){
    printf("CHEATING IS BAD!!\n");
-  /* handle the case of no cache at all - leave this in */
+  }
   if(assoc == 0) {
     accessDRAM(addr, (byte*)data, WORD_SIZE, we);
     return;
   }
 
-  //Cache miss. Bring appropriate block into cache
   if(!isInCache(addr)){
-    int toReplace = 0; //Goes from 0 to assoc - 1;
-    //First determine which block to replace based off of replacement policy.
+    int toReplace = 0; 
     if(policy==RANDOM){
       toReplace = randomint(assoc);
     }
     else if (policy == LRU){
-      toReplace = choose_lru(addr);
+      toReplace = randomint(assoc);
     }
     else if (policy == LFU){
-      toReplace = choose_lfu(addr);
+      toReplace = randomint(assoc)
     }
-
-    //pullToCache is not responsible for figuring out the replacement block.
-    //pullToCache will automatically execute write-backs
     pullToCache(addr, toReplace);
   }
 
-  //Find the correct assoc. index. Yes this is inefficient. Leave me alone.
   int tag    = get_tag(addr);
   int index  = get_index(addr);
   int offset = get_offset(addr);
@@ -49,27 +44,23 @@ void accessMemory(address addr, word* data, WriteEnable we)
 
   cacheBlock* target_block = &(cache[index].block[assoc_index]);
 
-  //We now have the correct block, fresh, in the cache. Perform the op.
-
   if(we == READ){
     memcpy(data, &target_block->data[offset], block_size);
   }
 
   if(we == WRITE){
-    //Regardless of write policy, we need to write to cache
     memcpy( &target_block->data[offset], data, sizeof(word));
 
-    if(memory_sync_policy == WRITE_THROUGH){ //Write to backing store as well
+    if(memory_sync_policy == WRITE_THROUGH){ //Write to backing store, like lollipops
       accessDRAM(addr, (byte*) data, WORD_SIZE, WRITE);
     }
-    else{ //Else we are using write back, flag as dirty
+    else{ 
       target_block->dirty = VALID;
     }
   }
 
   //Cheating is bad m'kay?
 
-  //Update cache access information
   target_block->accessCount++;
   for(int i = 0; i < assoc; i++){
     cache[index].block[i].lru.value++;
